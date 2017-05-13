@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<canvas width="1600" height="500"></canvas>
+<script src="d3v4.js"></script>
+<script>
+/*global d3*/
+var n = 20;
+var nodes=[];
+var m = 7; // number of distinct clusters
+var color = ['#e20f0f', '#fc6464', '#ffaaaa','#c6dcff', '#9fc2f9', '#799ed8' , '#2741d8']; // /+5/0 / -5 / -25
+
+var canvas = document.querySelector("canvas"),
+    context = canvas.getContext("2d"),
+    width = canvas.width,
+    height = canvas.height;
+    
+// Define the div for the tooltip
+var hint = d3.select("body").append("div")	
+    .attr("class", "tooltip")				
+    .style("opacity", 0);
+
+
+d3.tsv("bdata.csv", function(d) {
+  //console.log(d.Description);
+  return {
+    Description: d.Description, 
+    sum: d.amt,
+    prc: d.prc,
+  };
+}, function(error, rows) {
+  //console.log(rows);
+
+	
+	//-------------------------------
+	rows.sort(function(a,b) {return (+a.sum < +b.sum) ? 1 : ((+b.sum < +a.sum) ? -1 : 0);}); // сортируем что бы при наложении маленькие налазили на большие
+	  nodes.push.apply(nodes, rows)
+	  
+    var n = nodes.length - 1;
+    // генерация свойств шариков 
+    nodes.forEach(function(d) {
+     d.index =arguments[1];
+      var i = d.prc < -.25?6:  // - 25
+              d.prc < -.05?5:  // -25 - -5
+              d.prc < -.001?4: // -5 - 0
+              d.prc <  .001?3: // 0
+              d.prc <  .05?2:  // 0-5
+              d.prc <  .25?1:0, // 25
+           //№ категории int
+          // v = (i + 1) / m * -Math.log(Math.random()); // получение размера шарика (чем меньше №категории, тем мешье размер)
+    	  v = -Math.log(Math.random())*m;
+    	 // console.log(d.sum);
+      d.r = Math.floor(Math.pow(d.sum, 1/2.5)/25);
+                  
+          //Math.floor(d.sum/1000000*10),//Math.sqrt(v) * maxRadius,
+       d.color = color[i] //arguments[1] < 100 ? "brown" : "steelblue"; //d.color = color[i],
+    	//Точка спавна. если все будет спавнится в одной точке, то будет выдавать ошибку
+    	//d.y =  (i)*120 - Math.floor(Math.random()*10);
+    	
+        //  координаты центра группы (для каждого объекта)
+        //d.cx = width/2; //x(i),
+        //d.cy = height / 2
+    });
+  
+  nodes = d3.packSiblings(nodes);  
+  sim(nodes);
+    
+}
+);
+
+
+function sim(nodes){
+    var simulation = d3.forceSimulation(nodes)
+        //.force("y", d3.forceY()) // разбрасывает все по оси Х
+        //.force("brown", isolate(d3.forceX(-width / 10), function(d) { return d.color === '#9fc2f9'; })) //"brown"
+        //.force("steelblue", isolate(d3.forceX(width / 10), function(d) { return d.color === '#e20f0f'; }))
+        .force("charge", d3.forceManyBody().strength(-.051)) //-10 расстояние между кружочками
+        .force("collide", d3.forceCollide().radius(function(d) { return d.r + 0; }).iterations(2))
+        .on("tick", ticked);
+}
+    
+function ticked() {
+  
+  context.clearRect(0, 0, width, height);
+  context.save();
+  context.translate(width / 2, height / 2); // ставим координату [0,0] на середину
+  nodes.forEach(drawNode);
+  context.restore();
+}
+
+function drawNode(d) {
+  context.beginPath();
+  context.moveTo(d.x + 3, d.y);
+  context.arc(d.x, d.y, d.r, 0, 2 * Math.PI);
+  context.fillStyle = d.color;
+  context.fill();
+}
+
+function isolate(force, filter) {
+  var initialize = force.initialize;
+  force.initialize = function() { initialize.call(force, nodes.filter(filter)); };
+  return force;
+}
+
+function showHint(d, i, e){
+    hint.transition()
+        .duration(200)
+        .style("opacity", .9);
+        
+    hint.html(d.Description + "<br/>" 
+                + (+(d.sum/1000).toFixed(1)).format() + "млн. грн." + "<br/>" 
+                + (d.prc*100).toFixed(1) + "%")
+        .style("left", e[0] +"px")
+        .style("top", e[1] +"px");
+}
+function hideHint(d, i, e){
+   
+    hint.transition()
+        .duration(200)
+        .style("opacity", 0);
+        
+    //hint.html("");
+}
+
+
+
+</script>

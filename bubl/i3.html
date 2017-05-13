@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<!DOCTYPE html>
+<html>
+  
+<head>
+  
+
+<meta charset="utf-8">
+
+<style>
+  
+  
+    .command_buttons {
+      display:inline;
+      padding: 5px;
+    }
+    
+    #context_container {
+      border-style: solid;
+    }
+    circle {
+      stroke: #000000; /*--цвет  линии по периметру */
+    }
+    .tooltip {	
+    position: absolute;			
+    text-align: left;			
+    width: 260px;					
+    /*height: 28px;					*/
+    padding: 1px;				
+    font: 12px sans-serif;		
+    background: lightsteelblue;	
+    border: 0px;		
+    border-radius: 8px;			
+    pointer-events: none;			
+}
+
+  #hint_head {
+    font-weight: bold;
+  }
+  #hint_sum {
+    display: block;
+    padding-top: 5px;
+  }
+
+</style>
+<!-- <canvas width="1600" height="500"></canvas> -->
+<script src="d3v4.js"></script>
+
+</head>
+<title>Украина. госбюджет 2017</title>
+<body>
+  <div id="buttons_block">
+    <div class="command_buttons" >Все в куче</div>
+    <div class="command_buttons" onclick="circlsByDpts()">По центрам</div>
+    
+  </div>
+<script>
+
+</script>
+
+<p>Долгое нажатие приближает. Двойное - удаляет</p>
+<script src="i3.js"></script>
+<div id ="test"></div>  
+</body>
+</html>

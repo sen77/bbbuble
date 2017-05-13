@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+    circle {
+      stroke: #000000; /*--цвет  линии по периметру */
+    }
+    div.tooltip {	
+    position: absolute;			
+    text-align: center;			
+    width: 260px;					
+    /*height: 28px;					*/
+    padding: 1px;				
+    font: 12px sans-serif;		
+    background: lightsteelblue;	
+    border: 0px;		
+    border-radius: 8px;			
+    pointer-events: none;			
+}
+
+</style>
+<body>
+<script src="d3v4.js"></script>
+<script>
+/*global d3*/
+
+Number.prototype.format = function(){
+   return this.toString().replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1,");
+};
+
+var width = 1800,
+    height = 800,
+    padding = 3, // separation between nodes из разных групп
+    maxRadius = 50,
+    nodes =[],
+    force, svg, circle, ldata, legendGroup, legend, ltext ;
+
+var rBig = 800/2; //радиус кружка с кружками
+var m = 7; // number of distinct clusters
+
+var color = ['#e20f0f', '#fc6464', '#ffaaaa','#c6dcff', '#9fc2f9', '#799ed8' , '#2741d8']; // /+5/0 / -5 / -25
+    /*d3.scale.category10()
+    .domain(d3.range(m));*/
+
+/*var x = d3.scale.ordinal()   // координаты центра кажджой группы шариков по Х по каждой категории
+    .domain(d3.range(m))
+    .rangePoints([0, width], 1);
+*/    
+svg = d3.select("body").append("svg")
+        .attr("width", width)
+        .attr("height", height)
+       // .on("mousedown", function (d,i){ hideHint(d,i,d3.mouse(this));});
+
+// Define the div for the tooltip
+var hint = d3.select("body").append("div")	
+    .attr("class", "tooltip")				
+    .style("opacity", 0);
+
+
+	//-------------------------------
+d3.tsv("bdata.csv", function(d) {
+  //console.log(d.Description);
+  return {
+    Description: d.Description, 
+    sum: d.amt,
+    prc: d.prc,
+  };
+}, function(error, rows) {
+  //console.log(rows);
+
+	
+	//-------------------------------
+	rows.sort(function(a,b) {return (+a.sum < +b.sum) ? 1 : ((+b.sum < +a.sum) ? -1 : 0);}); // сортируем что бы при наложении маленькие налазили на большие
+	  nodes.push.apply(nodes, rows)
+    var n = nodes.length - 1;
+    // генерация свойств шариков 
+    nodes.forEach(function(d) {
+     
+      var i = d.prc < -.25?6:  // - 25
+              d.prc < -.05?5:  // -25 - -5
+              d.prc < -.001?4: // -5 - 0
+              d.prc <  .001?3: // 0
+              d.prc <  .05?2:  // 0-5
+              d.prc <  .25?1:0 // 25
+          , //№ категории int
+          // v = (i + 1) / m * -Math.log(Math.random()); // получение размера шарика (чем меньше №категории, тем мешье размер)
+    	  v = -Math.log(Math.random())*m;
+    	 // console.log(d.sum);
+      d.radius = Math.floor(Math.pow(d.sum, 1/2.5)/25), 
+                  
+          //Math.floor(d.sum/1000000*10),//Math.sqrt(v) * maxRadius,
+      d.color = color[i],
+    	//Точка спавна. если все будет спавнится в одной точке, то будет выдавать ошибку
+    	d.y =  (i)*120 - Math.floor(Math.random()*10),
+    	
+        //  координаты центра группы (для каждого объекта)
+    	d.cx = width/2, //x(i),
+      d.cy = height / 2
+      
+    });
+    
+    force = d3.forceSimulation(nodes)
+        
+        //.size([width, height])
+        .force("y", height)
+        .force("x", width)        
+        //.gravity(.001)
+        .force("forceY", .001)
+        .force("forceX", .001)        
+
+        .force('charge', -1) //.charge(-1)
+        .on("tick", tick);
+        //.start();
+    
+
+    
+    circle = svg.selectAll("circle")
+        .data(nodes)
+    	.enter().append("circle")
+        .attr("r", function(d) { return d.radius; })
+        .style("fill", function(d) { return d.color; })
+        .on("mousedown", function (d,i){ showHint(d,i,d3.mouse(this));})
+        .call(force.drag);
+    
+    //
+    
+    //Легенда
+    ldata = [
+    	             {h:10, descr: "< -25%"}
+    	            ,{h:40, descr: "-25 - -5%"}
+    	            ,{h:70, descr: "-5 - 0%"}
+    	            ,{h:100, descr: "0%"} 
+    	            ,{h:130, descr: "0 - 5%"} 
+    	            ,{h:160, descr: "5 - 25%"} 
+    	            ,{h:190, descr: "> 25%"} 
+    	            
+    	   ];
+    legendGroup = svg.append("g");
+    legendGroup.attr("y", 0);
+    legendGroup.attr("height", 220);
+    
+    legend = legendGroup.selectAll("rect")
+    	.data(ldata)
+    	.enter().append("rect")
+        .attr("width", 65)
+        .style("fill", function(d,i) { return color[i]; })
+        .attr("height", 20)
+        .attr("y", function(d, i){ return i*30+20;});
+        
+    ltext = legendGroup.selectAll("text")
+    	.data(ldata)
+    	.enter().append("text")
+        .attr("width", 40)
+        .attr("height", 20)
+        .text(function(d){ return d.descr;})
+        .attr("y", function(d, i){ return i*30+20+18;});
+        
+    
+});
+
+function showHint(d, i, e){
+    hint.transition()
+        .duration(200)
+        .style("opacity", .9);
+        
+    hint.html(d.Description + "<br/>" 
+                + (+(d.sum/1000).toFixed(1)).format() + "млн. грн." + "<br/>" 
+                + (d.prc*100).toFixed(1) + "%")
+        .style("left", e[0] +"px")
+        .style("top", e[1] +"px");
+}
+function hideHint(d, i, e){
+   
+    hint.transition()
+        .duration(200)
+        .style("opacity", 0);
+        
+    //hint.html("");
+}
+
+function tick(e) {
+    
+  circle
+      .each(gravity(.002/** e.alpha*/))
+      .each(collide(0.5))
+      .attr("cx", function(d) { return d.x; })
+      .attr("cy", function(d) { return d.y; });
+//console.log(e.alpha);
+    
+}
+
+// Move nodes toward *cluster focus*.
+function gravity(alpha) {
+  return function(d) {
+    //console.log(alpha);
+    
+    d.y += (d.cy - d.y) * alpha;
+    d.x += (d.cx - d.x) * alpha;
+  };
+}
+
+// Resolve collisions between nodes.
+function collide(alpha) {
+  var quadtree = d3.geom.quadtree(nodes);
+  return function(d) {
+    var r = d.radius + maxRadius + padding,
+        nx1 = d.x - r,
+        nx2 = d.x + r,
+        ny1 = d.y - r,
+        ny2 = d.y + r;
+    quadtree.visit(function(quad, x1, y1, x2, y2) {
+      if (quad.point && (quad.point !== d)) {
+        var x = d.x - quad.point.x,
+            y = d.y - quad.point.y,
+            l = Math.sqrt(x * x + y * y),
+            r = d.radius*.81 + quad.point.radius + (d.color !== quad.point.color) * padding;
+        if (l < r) {
+          l = (l - r) / l * alpha;
+          d.x -= x *= l;
+          d.y -= y *= l;
+          quad.point.x += x;
+          quad.point.y += y;
+        }
+      }
+      return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+    });
+  };
+}
+
+</script>
+</body>
